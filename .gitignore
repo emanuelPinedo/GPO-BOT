@@ -1,2 +1,25 @@
+# Variables de entorno / secretos
 .env
-node_modules
+.env.local
+.env.*.local
+
+# Dependencias
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+*.log
+
+# Datos persistentes del bot (canal/mensaje/rol guardados)
+data.json
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
