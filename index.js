@@ -9,15 +9,35 @@ const {
   ANCHOR,
   ALERT_MINUTES_BEFORE,
   CHECK_INTERVAL_MS,
+  DEFAULT_CHANNEL_ID,
 } = require('./config');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
-client.once('ready', () => {
+client.once('ready', async () => {
   console.log(`Conectado como ${client.user.tag}`);
+  await ensureDefaultChannel();
   tick();
   setInterval(tick, CHECK_INTERVAL_MS);
 });
+
+// Si todavía no hay un mensaje de horarios creado, lo publica solo en
+// DEFAULT_CHANNEL_ID (config.js) apenas el bot arranca.
+async function ensureDefaultChannel() {
+  const data = store.load();
+  if (data.channelId && data.messageId) return; // ya está configurado
+
+  try {
+    const channel = await client.channels.fetch(DEFAULT_CHANNEL_ID);
+    const message = await channel.send({ embeds: [buildBossEmbed(), buildMerchantEmbed()] });
+    data.channelId = DEFAULT_CHANNEL_ID;
+    data.messageId = message.id;
+    store.save(data);
+    console.log(`Mensaje de horarios publicado en el canal ${DEFAULT_CHANNEL_ID}`);
+  } catch (err) {
+    console.error(`No se pudo publicar en el canal ${DEFAULT_CHANNEL_ID}:`, err.message);
+  }
+}
 
 async function tick() {
   const data = store.load();
@@ -34,7 +54,7 @@ async function tick() {
   }
 
   // 2. Revisar si hay que avisar 5 minutos antes de algún spawn
-  const alertChannelId = data.alertChannelId || data.channelId;
+  const alertChannelId = data.alertChannelId || data.channelId || DEFAULT_CHANNEL_ID;
   if (alertChannelId) {
     for (const boss of [...BOSSES, MERCHANT]) {
       const { nextSpawn } = getCycle(ANCHOR, boss.intervalMinutes, Date.now());
