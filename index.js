@@ -30,7 +30,7 @@ client.once('ready', () => {
 });
 
 async function tick() {
-  const data = store.load();
+  const data = await store.load();
 
   // 1. Mantener el mensaje de horarios actualizado (por si el embed cambió de ciclo)
   if (data.channelId && data.messageId) {
@@ -60,7 +60,7 @@ async function tick() {
             `${mencion}⚠️ **${boss.name}** ${verbo} en ${ALERT_MINUTES_BEFORE} minutos!`,
           );
           data.sentAlerts[boss.id] = nextSpawn;
-          store.save(data);
+          await store.save(data);
         } catch (err) {
           console.error('No se pudo enviar la alerta:', err.message);
         }
@@ -73,7 +73,7 @@ client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
   try {
-    const data = store.load();
+    const data = await store.load();
 
     if (interaction.commandName === 'gpo-setup') {
       const message = await interaction.channel.send({
@@ -81,7 +81,7 @@ client.on('interactionCreate', async (interaction) => {
       });
       data.channelId = interaction.channel.id;
       data.messageId = message.id;
-      store.save(data);
+      await store.save(data);
       await interaction.reply({
         content: '✅ Mensaje de horarios creado en este canal. Se va a mantener actualizado solo.',
         ephemeral: true,
@@ -95,7 +95,7 @@ client.on('interactionCreate', async (interaction) => {
       if (canal) data.alertChannelId = canal.id;
       if (rol) data.alertRoleId = rol.id;
       if (activar !== null) data.alertsEnabled = activar;
-      store.save(data);
+      await store.save(data);
 
       const estado = data.alertsEnabled ? 'activadas ✅' : 'desactivadas ⛔';
       await interaction.reply({
