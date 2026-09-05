@@ -1,4 +1,5 @@
 require('dotenv').config();
+const http = require('http');
 const { Client, GatewayIntentBits } = require('discord.js');
 const store = require('./store');
 const { buildBossEmbed, buildMerchantEmbed } = require('./embeds');
@@ -9,35 +10,26 @@ const {
   ANCHOR,
   ALERT_MINUTES_BEFORE,
   CHECK_INTERVAL_MS,
-  DEFAULT_CHANNEL_ID,
 } = require('./config');
+
+// Render (como Web Service) necesita que el proceso escuche un puerto HTTP
+// para considerarlo "vivo" y no marcarlo como caído. El bot no usa este
+// servidor para nada más que responder "OK" a ese chequeo.
+const PORT = process.env.PORT || 3000;
+http
+  .createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('GPO Boss Bot está corriendo.');
+  })
+  .listen(PORT, () => console.log(`Servidor HTTP de salud escuchando en el puerto ${PORT}`));
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
-client.once('ready', async () => {
+client.once('ready', () => {
   console.log(`Conectado como ${client.user.tag}`);
-  await ensureDefaultChannel();
   tick();
   setInterval(tick, CHECK_INTERVAL_MS);
 });
-
-// Si todavía no hay un mensaje de horarios creado, lo publica solo en
-// DEFAULT_CHANNEL_ID (config.js) apenas el bot arranca.
-async function ensureDefaultChannel() {
-  const data = store.load();
-  if (data.channelId && data.messageId) return; // ya está configurado
-
-  try {
-    const channel = await client.channels.fetch(DEFAULT_CHANNEL_ID);
-    const message = await channel.send({ embeds: [buildBossEmbed(), buildMerchantEmbed()] });
-    data.channelId = DEFAULT_CHANNEL_ID;
-    data.messageId = message.id;
-    store.save(data);
-    console.log(`Mensaje de horarios publicado en el canal ${DEFAULT_CHANNEL_ID}`);
-  } catch (err) {
-    console.error(`No se pudo publicar en el canal ${DEFAULT_CHANNEL_ID}:`, err.message);
-  }
-}
 
 async function tick() {
   const data = store.load();
@@ -53,9 +45,9 @@ async function tick() {
     }
   }
 
-  // 2. Revisar si hay que avisar 5 minutos antes de algún spawn
-  const alertChannelId = data.alertChannelId || data.channelId || DEFAULT_CHANNEL_ID;
-  if (alertChannelId) {
+  // 2. Revisar si hay que avisar (SOLO si las alertas están activadas explícitamente)
+  const alertChannelId = data.alertChannelId || data.channelId;
+  if (data.alertsEnabled && alertChannelId) {
     for (const boss of [...BOSSES, MERCHANT]) {
       const { nextSpawn } = getCycle(ANCHOR, boss.intervalMinutes, Date.now());
       const msLeft = nextSpawn - Date.now();
@@ -81,29 +73,59 @@ async function tick() {
 
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
-  const data = store.load();
 
-  if (interaction.commandName === 'gpo-setup') {
-    const message = await interaction.channel.send({
-      embeds: [buildBossEmbed(), buildMerchantEmbed()],
-    });
-    data.channelId = interaction.channel.id;
-    data.messageId = message.id;
-    store.save(data);
-    await interaction.reply({
-      content: '✅ Mensaje de horarios creado en este canal. Se va a mantener actualizado solo.',
-      ephemeral: true,
-    });
-  }
+  try {
+    const data = store.load();
 
-  if (interaction.commandName === 'gpo-alertas') {
-    const canal = interaction.options.getChannel('canal');
-    const rol = interaction.options.getRole('rol');
-    if (canal) data.alertChannelId = canal.id;
-    if (rol) data.alertRoleId = rol.id;
-    store.save(data);
-    await interaction.reply({ content: '✅ Configuración de alertas guardada.', ephemeral: true });
+    if (interaction.commandName === 'gpo-setup') {
+      const message = await interaction.channel.send({
+        embeds: [buildBossEmbed(), buildMerchantEmbed()],
+      });
+      data.channelId = interaction.channel.id;
+      data.messageId = message.id;
+      store.save(data);
+      await interaction.reply({
+        content: '✅ Mensaje de horarios creado en este canal. Se va a mantener actualizado solo.',
+        ephemeral: true,
+      });
+    }
+
+    if (interaction.commandName === 'gpo-alertas') {
+      const canal = interaction.options.getChannel('canal');
+      const rol = interaction.options.getRole('rol');
+      const activar = interaction.options.getBoolean('activar');
+      if (canal) data.alertChannelId = canal.id;
+      if (rol) data.alertRoleId = rol.id;
+      if (activar !== null) data.alertsEnabled = activar;
+      store.save(data);
+
+      const estado = data.alertsEnabled ? 'activadas ✅' : 'desactivadas ⛔';
+      await interaction.reply({
+        content: `Alertas: **${estado}**${data.alertChannelId ? `\nCanal: <#${data.alertChannelId}>` : ''}${data.alertRoleId ? `\nRol a mencionar: <@&${data.alertRoleId}>` : ''}`,
+        ephemeral: true,
+      });
+    }
+  } catch (err) {
+    console.error(`Error al procesar /${interaction.commandName}:`, err);
+    const mensajeError = `❌ Algo falló: ${err.message}`;
+    try {
+      if (interaction.deferred || interaction.replied) {
+        await interaction.editReply({ content: mensajeError });
+      } else {
+        await interaction.reply({ content: mensajeError, ephemeral: true });
+      }
+    } catch (errReply) {
+      console.error('Encima no se pudo avisar del error por Discord:', errReply.message);
+    }
   }
+});
+
+// Evita que un error suelto tumbe todo el proceso del bot.
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled rejection:', err);
+});
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
 });
 
 client.login(process.env.DISCORD_TOKEN);

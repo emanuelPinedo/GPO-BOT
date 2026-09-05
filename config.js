@@ -22,15 +22,4 @@ const MERCHANT = { id: 'merchant', name: 'Travelling Merchant', emoji: '🛒', i
 const ALERT_MINUTES_BEFORE = 5;
 const CHECK_INTERVAL_MS = 10_000; // cada cuánto revisa el bot si hay que avisar o refrescar el embed
 
-// Canal donde el bot va a publicar y actualizar el mensaje de horarios
-// automáticamente al arrancar, sin necesitar /gpo-setup.
-const DEFAULT_CHANNEL_ID = '1545576032700989481';
-
-module.exports = {
-  ANCHOR,
-  BOSSES,
-  MERCHANT,
-  ALERT_MINUTES_BEFORE,
-  CHECK_INTERVAL_MS,
-  DEFAULT_CHANNEL_ID,
-};
+module.exports = { ANCHOR, BOSSES, MERCHANT, ALERT_MINUTES_BEFORE, CHECK_INTERVAL_MS };

@@ -8,6 +8,9 @@ const commands = [
   new SlashCommandBuilder()
     .setName('gpo-alertas')
     .setDescription('Configura dónde y a quién avisar 5 minutos antes de que spawnee un jefe')
+    .addBooleanOption((opt) =>
+      opt.setName('activar').setDescription('Prender o apagar las alertas'),
+    )
     .addChannelOption((opt) =>
       opt
         .setName('canal')

@@ -5,11 +5,15 @@ const FILE = path.join(__dirname, 'data.json');
 
 function load() {
   try {
-    return JSON.parse(fs.readFileSync(FILE, 'utf8'));
+    const data = JSON.parse(fs.readFileSync(FILE, 'utf8'));
+    // Por si el archivo es de una versión vieja y no tiene este campo todavía
+    if (typeof data.alertsEnabled !== 'boolean') data.alertsEnabled = false;
+    return data;
   } catch {
     return {
       channelId: null,
       messageId: null,
+      alertsEnabled: false, // las alertas empiezan APAGADAS hasta que uses /gpo-alertas activar:true
       alertChannelId: null,
       alertRoleId: null,
       sentAlerts: {}, // { bossId: nextSpawnMsYaAvisado }
