@@ -1,6 +1,6 @@
 require('dotenv').config();
 const http = require('http');
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits, MessageFlags } = require('discord.js');
 const store = require('./store');
 const { buildBossEmbed, buildMerchantEmbed, getBossCycle } = require('./embeds');
 const {
@@ -84,7 +84,7 @@ client.on('interactionCreate', async (interaction) => {
       await store.save(data);
       await interaction.reply({
         content: '✅ Mensaje de horarios creado en este canal. Se va a mantener actualizado solo.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -100,7 +100,7 @@ client.on('interactionCreate', async (interaction) => {
       const estado = data.alertsEnabled ? 'activadas ✅' : 'desactivadas ⛔';
       await interaction.reply({
         content: `Alertas: **${estado}**${data.alertChannelId ? `\nCanal: <#${data.alertChannelId}>` : ''}${data.alertRoleId ? `\nRol a mencionar: <@&${data.alertRoleId}>` : ''}`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   } catch (err) {
@@ -110,7 +110,7 @@ client.on('interactionCreate', async (interaction) => {
       if (interaction.deferred || interaction.replied) {
         await interaction.editReply({ content: mensajeError });
       } else {
-        await interaction.reply({ content: mensajeError, ephemeral: true });
+        await interaction.reply({ content: mensajeError, flags: MessageFlags.Ephemeral });
       }
     } catch (errReply) {
       console.error('Encima no se pudo avisar del error por Discord:', errReply.message);
