@@ -1,6 +1,14 @@
 const { EmbedBuilder } = require('discord.js');
 const { getCycle } = require('./time');
+const { getScheduleCycle } = require('./schedule');
 const { BOSSES, MERCHANT, ANCHOR } = require('./config');
+
+// Un jefe puede tener horario real confirmado (scheduleTimes) o, si todavía
+// no lo tenemos, usar el modo aproximado por intervalo (intervalMinutes).
+function getBossCycle(boss) {
+  if (boss.scheduleTimes) return getScheduleCycle(boss.scheduleTimes, Date.now());
+  return getCycle(ANCHOR, boss.intervalMinutes, Date.now());
+}
 
 function buildBossEmbed() {
   const embed = new EmbedBuilder()
@@ -10,7 +18,7 @@ function buildBossEmbed() {
     .setTimestamp();
 
   for (const boss of BOSSES) {
-    const { lastSpawn, nextSpawn } = getCycle(ANCHOR, boss.intervalMinutes, Date.now());
+    const { lastSpawn, nextSpawn } = getBossCycle(boss);
     const nextTs = Math.floor(nextSpawn / 1000);
     const lastTs = Math.floor(lastSpawn / 1000);
     embed.addFields({
@@ -23,7 +31,7 @@ function buildBossEmbed() {
 }
 
 function buildMerchantEmbed() {
-  const { lastSpawn, nextSpawn } = getCycle(ANCHOR, MERCHANT.intervalMinutes, Date.now());
+  const { lastSpawn, nextSpawn } = getBossCycle(MERCHANT);
   const nextTs = Math.floor(nextSpawn / 1000);
   const lastTs = Math.floor(lastSpawn / 1000);
 
@@ -36,4 +44,4 @@ function buildMerchantEmbed() {
     });
 }
 
-module.exports = { buildBossEmbed, buildMerchantEmbed };
+module.exports = { buildBossEmbed, buildMerchantEmbed, getBossCycle };

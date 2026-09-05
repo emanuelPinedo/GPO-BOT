@@ -2,12 +2,10 @@ require('dotenv').config();
 const http = require('http');
 const { Client, GatewayIntentBits } = require('discord.js');
 const store = require('./store');
-const { buildBossEmbed, buildMerchantEmbed } = require('./embeds');
-const { getCycle } = require('./time');
+const { buildBossEmbed, buildMerchantEmbed, getBossCycle } = require('./embeds');
 const {
   BOSSES,
   MERCHANT,
-  ANCHOR,
   ALERT_MINUTES_BEFORE,
   CHECK_INTERVAL_MS,
 } = require('./config');
@@ -49,7 +47,7 @@ async function tick() {
   const alertChannelId = data.alertChannelId || data.channelId;
   if (data.alertsEnabled && alertChannelId) {
     for (const boss of [...BOSSES, MERCHANT]) {
-      const { nextSpawn } = getCycle(ANCHOR, boss.intervalMinutes, Date.now());
+      const { nextSpawn } = getBossCycle(boss);
       const msLeft = nextSpawn - Date.now();
       const yaAvisado = data.sentAlerts[boss.id] === nextSpawn;
 
